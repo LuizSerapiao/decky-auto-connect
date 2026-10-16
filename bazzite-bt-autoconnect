@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -u
+
+readonly DEVICES_FILE="/home/deck/.config/bazzite-bluetooth-fix/devices.txt"
+readonly LOG_TAG="bazzite-bt-autoconnect"
+
+if ! command -v bluetoothctl >/dev/null 2>&1; then
+    logger -t "${LOG_TAG}" -- "bluetoothctl não foi encontrado"
+    exit 1
+fi
+
+while true; do
+    if [[ -r "${DEVICES_FILE}" && -s "${DEVICES_FILE}" ]]; then
+        while IFS= read -r mac || [[ -n "${mac}" ]]; do
+            mac="${mac//$'\r'/}"
+            mac="${mac#"${mac%%[![:space:]]*}"}"
+            mac="${mac%"${mac##*[![:space:]]}"}"
+
+            [[ -z "${mac}" || "${mac}" == \#* ]] && continue
+            if [[ ! "${mac}" =~ ^([[:xdigit:]]{2}:){5}[[:xdigit:]]{2}$ ]]; then
+                logger -t "${LOG_TAG}" -- "Ignorando endereço inválido na lista"
+                continue
+            fi
+
+            if ! bluetoothctl info "${mac}" 2>/dev/null | grep -Fq "Connected: yes"; then
+                if ! bluetoothctl connect "${mac}" >/dev/null 2>&1; then
+                    logger -t "${LOG_TAG}" -- "Não foi possível conectar ${mac}; nova tentativa em 4 segundos"
+                fi
+            fi
+        done < "${DEVICES_FILE}"
+    fi
+
+    sleep 4
+done

@@ -1,0 +1,17 @@
+[Unit]
+Description=Actively reconnect Bluetooth devices managed by the Decky plugin
+After=bluetooth.service
+Wants=bluetooth.service
+
+[Service]
+Type=simple
+User=root
+ExecStart=/etc/bazzite-bt-autoconnect
+Restart=on-failure
+RestartSec=4
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target

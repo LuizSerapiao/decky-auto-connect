@@ -1,0 +1,11 @@
+{
+  "name": "Bazzite Bluetooth Autoconnect",
+  "author": "DeckyPad",
+  "flags": [],
+  "api_version": 1,
+  "publish": {
+    "tags": ["bazzite", "bluetooth", "bluez"],
+    "description": "Scans, pairs, and connects Bluetooth devices through BlueZ, then keeps connected devices on the reconnection list.",
+    "image": ""
+  }
+}
