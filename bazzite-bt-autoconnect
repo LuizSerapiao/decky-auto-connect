@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -u
 
-readonly DEVICES_FILE="/home/deck/.config/bazzite-bluetooth-fix/devices.txt"
+readonly DEVICES_FILE="${HOME:?HOME is not set}/.config/bazzite-bluetooth-fix/devices.txt"
 readonly LOG_TAG="bazzite-bt-autoconnect"
 
 if ! command -v bluetoothctl >/dev/null 2>&1; then

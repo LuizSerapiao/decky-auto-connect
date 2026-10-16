@@ -1,13 +1,14 @@
 # Bazzite Bluetooth Autoconnect
 
-Este projeto combina um serviço systemd root-owned, que tenta reconectar os
+Este projeto combina um serviço systemd de usuário, que tenta reconectar os
 endereços cadastrados a cada quatro segundos, com um plugin Decky que pesquisa,
 pareia e conecta dispositivos Bluetooth através do BlueZ. Qualquer dispositivo
 conectado pelo plugin é adicionado à lista, sem filtro por tipo.
 
 O arquivo compartilhado é
-`/home/deck/.config/bazzite-bluetooth-fix/devices.txt` (um endereço MAC por
-linha). O serviço valida cada endereço antes de passá-lo ao `bluetoothctl`.
+`~/.config/bazzite-bluetooth-fix/devices.txt` na pasta pessoal do usuário que
+executa o Decky (um endereço MAC por linha). O serviço valida cada endereço
+antes de passá-lo ao `bluetoothctl`.
 Remover um endereço pelo painel tira-o da automação. Se for conectado novamente
 pelo plugin, ele volta à lista.
 O plugin não instala dependências Python de terceiros: usa o `bluetoothctl`
@@ -23,21 +24,22 @@ chmod +x install-service.sh
 ./install-service.sh
 ```
 
-O instalador pede `sudo` quando necessário, cria os arquivos de lista como
-propriedade do usuário `deck`, instala o serviço
-`bazzite-bt-autoconnect.service`, executa `systemctl daemon-reload` e habilita
-e inicia o serviço. Consulte o estado e os registros com:
+Execute o instalador pela conta que executa o Decky, sem `sudo`. Tudo é
+instalado no diretório pessoal do usuário (`~/.local/bin` e
+`~/.config/systemd/user`); nenhum arquivo do sistema é alterado, o que permite
+usar o instalador no SteamOS imutável. O serviço inicia junto com a sessão do
+usuário. Consulte o estado e os registros com:
 
 ```bash
-systemctl status bazzite-bt-autoconnect.service
-journalctl -u bazzite-bt-autoconnect.service -f
+systemctl --user status bazzite-bt-autoconnect.service
+journalctl --user -u bazzite-bt-autoconnect.service -f
 ```
 
-O serviço depende de BlueZ (`bluetoothctl`) e do serviço `bluetooth.service`.
-Para desativar apenas a reconexão:
+O serviço usa o `bluetoothctl` do BlueZ disponibilizado pelo SteamOS. Para
+desativar apenas a reconexão:
 
 ```bash
-sudo systemctl disable --now bazzite-bt-autoconnect.service
+systemctl --user disable --now bazzite-bt-autoconnect.service
 ```
 
 ## 2. Construir o plugin Decky
@@ -64,14 +66,14 @@ Mode > Install Plugin from ZIP** (a localização do item pode variar entre
 versões do Decky). Alternativamente, extraia esses três itens em:
 
 ```text
-/home/deck/homebrew/plugins/bazzite-bt-autoconnect/
+~/homebrew/plugins/bazzite-bt-autoconnect/
 ```
 
 Reinicie o Decky Loader ou o Steam após a instalação. O backend precisa ter
-permissão de leitura e escrita no arquivo compartilhado. O instalador deixa
-`devices.txt` pertencente a `deck` e gravável pelo proprietário. Instale o
-serviço primeiro; caso contrário, o backend do plugin reportará um erro ao
-acessar o arquivo.
+permissão de leitura e escrita no arquivo compartilhado. O instalador cria
+`devices.txt` no diretório pessoal do usuário e o deixa gravável por ele.
+Instale o serviço primeiro; caso contrário, o backend do plugin reportará um
+erro ao acessar o arquivo.
 
 ## Detecção e gestão
 

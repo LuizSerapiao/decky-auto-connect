@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly CONFIG_DIR="/home/deck/.config/bazzite-bluetooth-fix"
-readonly DEVICES_FILE="${CONFIG_DIR}/devices.txt"
-readonly SERVICE_FILE="/etc/systemd/system/bazzite-bt-autoconnect.service"
-readonly PROGRAM_FILE="/etc/bazzite-bt-autoconnect"
+readonly CONFIG_DIR_NAME=".config/bazzite-bluetooth-fix"
+readonly USER_BIN_DIR_NAME=".local/bin"
+readonly USER_UNIT_DIR_NAME=".config/systemd/user"
+readonly SERVICE_NAME="bazzite-bt-autoconnect.service"
 
-if [[ "${EUID}" -ne 0 ]]; then
-    script_path="$(readlink -f -- "${BASH_SOURCE[0]}")"
-    exec sudo -- "${script_path}" "$@"
+if [[ "${EUID}" -eq 0 ]]; then
+    printf 'Erro: execute este instalador como o usuário do Decky, sem sudo.\n' >&2
+    exit 1
 fi
 
-if ! getent passwd deck >/dev/null; then
-    printf 'Erro: o usuário deck não existe neste sistema.\n' >&2
+if [[ -z "${HOME:-}" || "${HOME}" != /* || "${HOME}" == "/" ]]; then
+    printf 'Erro: HOME não aponta para uma pasta pessoal válida.\n' >&2
     exit 1
 fi
 
@@ -21,8 +21,17 @@ if ! command -v systemctl >/dev/null 2>&1 || ! command -v bluetoothctl >/dev/nul
     exit 1
 fi
 
-deck_uid="$(id -u deck)"
-deck_gid="$(id -g deck)"
+if ! systemctl --user show-environment >/dev/null 2>&1; then
+    printf 'Erro: o systemd de usuário não está disponível nesta sessão.\n' >&2
+    exit 1
+fi
+
+CONFIG_DIR="${HOME}/${CONFIG_DIR_NAME}"
+DEVICES_FILE="${CONFIG_DIR}/devices.txt"
+USER_BIN_DIR="${HOME}/${USER_BIN_DIR_NAME}"
+USER_UNIT_DIR="${HOME}/${USER_UNIT_DIR_NAME}"
+PROGRAM_FILE="${USER_BIN_DIR}/bazzite-bt-autoconnect"
+SERVICE_FILE="${USER_UNIT_DIR}/${SERVICE_NAME}"
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source_program="${script_dir}/bazzite-bt-autoconnect"
 source_service="${script_dir}/bazzite-bt-autoconnect.service"
@@ -32,31 +41,43 @@ if [[ ! -f "${source_program}" || ! -f "${source_service}" ]]; then
     exit 1
 fi
 
-for path in /home/deck /home/deck/.config "${CONFIG_DIR}"; do
+for path in \
+    "${HOME}/.config" \
+    "${CONFIG_DIR}" \
+    "${HOME}/.local" \
+    "${USER_BIN_DIR}" \
+    "${HOME}/.config/systemd" \
+    "${USER_UNIT_DIR}"; do
     if [[ -L "${path}" ]]; then
         printf 'Erro: recusando instalar através de diretório simbólico: %s\n' "${path}" >&2
         exit 1
     fi
 done
 
-install -d -o "${deck_uid}" -g "${deck_gid}" -m 0750 "${CONFIG_DIR}"
+install -d -m 0750 "${CONFIG_DIR}"
 if [[ -L "${DEVICES_FILE}" ]]; then
     printf 'Erro: %s não pode ser um link simbólico.\n' "${DEVICES_FILE}" >&2
     exit 1
 elif [[ ! -e "${DEVICES_FILE}" ]]; then
-    install -o "${deck_uid}" -g "${deck_gid}" -m 0640 /dev/null "${DEVICES_FILE}"
+    install -m 0640 /dev/null "${DEVICES_FILE}"
 elif [[ ! -f "${DEVICES_FILE}" ]]; then
     printf 'Erro: %s precisa ser um arquivo normal, não um link ou diretório.\n' "${DEVICES_FILE}" >&2
     exit 1
 fi
-chown "${deck_uid}:${deck_gid}" "${DEVICES_FILE}"
 chmod 0640 "${DEVICES_FILE}"
 
-install -D -o root -g root -m 0755 "${source_program}" "${PROGRAM_FILE}"
-install -D -o root -g root -m 0644 "${source_service}" "${SERVICE_FILE}"
+install -d -m 0755 "${USER_BIN_DIR}" "${USER_UNIT_DIR}"
+for path in "${PROGRAM_FILE}" "${SERVICE_FILE}"; do
+    if [[ -L "${path}" ]]; then
+        printf 'Erro: recusando instalar através de arquivo simbólico: %s\n' "${path}" >&2
+        exit 1
+    fi
+done
+install -m 0755 "${source_program}" "${PROGRAM_FILE}"
+install -m 0644 "${source_service}" "${SERVICE_FILE}"
 
-systemctl daemon-reload
-systemctl enable --now bazzite-bt-autoconnect.service
-systemctl --no-pager --full status bazzite-bt-autoconnect.service
+systemctl --user daemon-reload
+systemctl --user enable --now "${SERVICE_NAME}"
+systemctl --user --no-pager --full status "${SERVICE_NAME}"
 
-printf '\nInstalado. Lista de dispositivos: %s\n' "${DEVICES_FILE}"
+printf '\nInstalado no userspace. Lista de dispositivos: %s\n' "${DEVICES_FILE}"

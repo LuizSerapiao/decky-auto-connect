@@ -10,7 +10,12 @@ from typing import Dict, List, Optional
 import decky
 
 
-DEVICES_FILE = "/home/deck/.config/bazzite-bluetooth-fix/devices.txt"
+DEVICES_FILE = os.path.join(
+    os.path.expanduser("~"),
+    ".config",
+    "bazzite-bluetooth-fix",
+    "devices.txt",
+)
 MAC_PATTERN = re.compile(r"^(?:[0-9A-F]{2}:){5}[0-9A-F]{2}$")
 DEVICE_LINE_PATTERN = re.compile(
     r"^\s*Device\s+((?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2})(?:\s+(.*))?$"
