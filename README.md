@@ -1,0 +1,1 @@
+# decky-auto-connect
